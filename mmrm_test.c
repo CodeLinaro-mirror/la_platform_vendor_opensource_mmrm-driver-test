@@ -32,6 +32,7 @@ enum PLATFORM_SOC_ID {
 	SOC_ID_LAHAINA = 415,	/* LAHAINA */
 	SOC_ID_WAIPIO = 457,	/* WAIPIO */
 	SOC_ID_KAILUA = 519,	/* KAILUA */
+	SOC_ID_PINEAPPLE = 557,	/* PINEAPPLE */
 };
 
 
@@ -215,6 +216,11 @@ static int mmrm_test_probe(struct platform_device *pdev)
 		break;
 	case SOC_ID_KAILUA: /* KAILUA */
 		test_mmrm_client(pdev, MMRM_TEST_KAILUA, MMRM_TEST_KAILUA_NUM_CLK_CLIENTS);
+		test_mmrm_concurrent_client_cases(pdev, waipio_testcases, waipio_testcases_count);
+		test_mmrm_switch_volt_corner_client_testcases(pdev, waipio_cornercase_testcases, waipio_cornercase_testcases_count);
+		break;
+	case SOC_ID_PINEAPPLE: /* PINEAPPLE */
+		test_mmrm_client(pdev, MMRM_TEST_PINEAPPLE, MMRM_TEST_PINEAPPLE_NUM_CLK_CLIENTS);
 		test_mmrm_concurrent_client_cases(pdev, waipio_testcases, waipio_testcases_count);
 		test_mmrm_switch_volt_corner_client_testcases(pdev, waipio_cornercase_testcases, waipio_cornercase_testcases_count);
 		break;
