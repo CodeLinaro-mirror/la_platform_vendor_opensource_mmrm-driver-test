@@ -250,10 +250,6 @@ int mmrm_test_remove(struct platform_device *pdev) {
 		rc = -EINVAL;
 		goto err_exit;
 	}
-
-	if (test_drv_data->clk_res.clk_rate_tbl)
-		kfree(test_drv_data->clk_res.clk_rate_tbl);
-
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	kfree(test_drv_data);
