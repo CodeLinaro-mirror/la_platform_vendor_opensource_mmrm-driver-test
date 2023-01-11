@@ -48,6 +48,9 @@ struct clock_rate {
 	u32   domain;
 	u32   id;
 	u32   clk_rates[MMRM_TEST_VDD_LEVEL_MAX];
+	u32   num_hw_blocks;
+	u32   hw_drv_instances;
+	u32   num_pwr_states;
 };
 
 extern struct  mmrm_test_desc  *waipio_all_testcases[];
@@ -73,6 +76,7 @@ extern int waipio_cornercase_testcases_count;
 extern struct  mmrm_test  *all_lahaina_testcases[];
 
 void test_mmrm_client(struct platform_device *pdev, int index, int count);
+void test_mmrm_crm_clients(struct platform_device *pdev, int count);
 void test_mmrm_single_client_cases(struct platform_device *pdev,
 		int index, int count);
 void test_mmrm_concurrent_client_cases(struct platform_device *pdev,

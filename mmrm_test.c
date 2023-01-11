@@ -79,38 +79,49 @@ int mmrm_load_mmrm_test_table(
 	}
 
 	clk_rate = dt_res->clk_rate_tbl;
-	for (c = 0; c < num_clock_names; c++, entry_offset += 7, clk_rate++) {
+	for (c = 0; c < num_clock_names; c++, entry_offset += 10, clk_rate++) {
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset, &clk_rate->domain);
+			"clock_data", entry_offset, &clk_rate->domain);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+1, &clk_rate->id);
+			"clock_data", entry_offset + 1, &clk_rate->id);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+2, &clk_rate->clk_rates[0]);
+			"clock_data", entry_offset + 2, &clk_rate->clk_rates[0]);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+3, &clk_rate->clk_rates[1]);
+			"clock_data", entry_offset + 3, &clk_rate->clk_rates[1]);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+4, &clk_rate->clk_rates[2]);
+			"clock_data", entry_offset + 4, &clk_rate->clk_rates[2]);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+5, &clk_rate->clk_rates[3]);
+			"clock_data", entry_offset + 5, &clk_rate->clk_rates[3]);
 
 		of_property_read_u32_index(pdev->dev.of_node,
-			"clock_rates", entry_offset+6, &clk_rate->clk_rates[4]);
+			"clock_data", entry_offset + 6, &clk_rate->clk_rates[4]);
+
+		of_property_read_u32_index(pdev->dev.of_node,
+			"clock_data", entry_offset + 7, &clk_rate->num_hw_blocks);
+
+		of_property_read_u32_index(pdev->dev.of_node,
+			"clock_data", entry_offset + 8, &clk_rate->hw_drv_instances);
+
+		of_property_read_u32_index(pdev->dev.of_node,
+			"clock_data", entry_offset + 9, &clk_rate->num_pwr_states);
 	}
 
 	/* print clock rate tables */
 
 	clk_rate = dt_res->clk_rate_tbl;
 	for (c = 0; c < num_clock_names; c++, clk_rate++) {
-		pr_info("clock name:%s, %d, %d, %d, %d, %d, %d, %d\n", clk_rate->name,
+		pr_info("clock name:%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", clk_rate->name,
 			clk_rate->domain, clk_rate->id,
 			clk_rate->clk_rates[0], clk_rate->clk_rates[1],
 			clk_rate->clk_rates[2], clk_rate->clk_rates[3],
-			clk_rate->clk_rates[4]);
+			clk_rate->clk_rates[4], clk_rate->num_hw_blocks,
+			clk_rate->hw_drv_instances,
+			clk_rate->num_pwr_states);
 	}
 
 	return 0;
@@ -223,6 +234,7 @@ static int mmrm_test_probe(struct platform_device *pdev)
 		test_mmrm_client(pdev, MMRM_TEST_PINEAPPLE, MMRM_TEST_PINEAPPLE_NUM_CLK_CLIENTS);
 		test_mmrm_concurrent_client_cases(pdev, waipio_testcases, waipio_testcases_count);
 		test_mmrm_switch_volt_corner_client_testcases(pdev, waipio_cornercase_testcases, waipio_cornercase_testcases_count);
+		test_mmrm_crm_clients(pdev, MMRM_TEST_PINEAPPLE_NUM_CLK_CLIENTS);
 		break;
 	default:
 		pr_info("%s: Not supported for soc_id %d [Target %s]\n",

@@ -15,6 +15,7 @@
 
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <soc/qcom/crm.h>
 
 #include "mmrm_test_internal.h"
 
@@ -244,6 +245,156 @@ void test_mmrm_client(struct platform_device *pdev, int index, int count)
 
 	pr_info("%s: Finish individual client tests (pass / total): (%d / %d)\n",
 		__func__, pass_count, count);
+}
+
+/*
+ * Run tests (Register, Set, Get, De-register) on CRM clients
+ */
+void test_mmrm_crm_clients(struct platform_device *pdev, int count)
+{
+	struct clk *clk;
+	struct mmrm_client *client;
+	struct mmrm_client_data client_data;
+	struct mmrm_client_res_value res_val;
+	unsigned long val;
+	struct clock_rate *clk_res;
+	struct mmrm_clk_client_desc  *clk_desc;
+	struct mmrm_client_desc desc;
+	int i, j, k, level, pass_count = 0, crm_count = 0, rc = 0, rc2 = 0;
+	const struct device *crm_dev;
+
+	pr_info("%s: Running CRM client tests\n", __func__);
+
+	// TODO get CRM device based on clock domain
+	crm_dev = crm_get_device("cam_crm");
+	if (IS_ERR_OR_NULL(crm_dev)) {
+		pr_info("%s: crm_get_device failed for %s\n", __func__, "cam_crm");
+		goto err_get_crm;
+	}
+
+	for (i = 0; i < count; i++) {
+		struct mmrm_client_notifier_data notifier_data = {
+			MMRM_CLIENT_RESOURCE_VALUE_CHANGE, {{0, 0}}, NULL};
+
+		// Create client descriptor
+		clk_res = get_nth_clock(i);
+		if (clk_res == NULL)
+			break;
+
+		if (clk_res->hw_drv_instances == 0 || clk_res->num_pwr_states == 0)
+			continue;
+
+		crm_count++;
+
+		desc.client_type = MMRM_CLIENT_CLOCK;
+		desc.priority = MMRM_CLIENT_PRIOR_HIGH;
+		desc.pvt_data = notifier_data.pvt_data;
+		desc.notifier_callback_fn = test_mmrm_client_callback;
+
+		clk_desc = &desc.client_info.desc;
+		clk_desc->client_domain = clk_res->domain;
+		clk_desc->client_id = clk_res->id;
+		strlcpy((char *)clk_desc->name, clk_res->name, sizeof(clk_desc->name));
+
+		// Get clk
+		clk = clk_get(&pdev->dev, (const char *)&desc.client_info.desc.name);
+		if (IS_ERR_OR_NULL(clk)) {
+			pr_info("%s: clk_get failed for %s\n",
+				__func__,
+				desc.client_info.desc.name);
+			rc = -EINVAL;
+			goto err_clk;
+		}
+		desc.client_info.desc.clk = clk;
+		pr_info("%s: clk(%pK)\n", __func__, clk);
+
+		/* CRM Data */
+		clk_desc->hw_drv_instances = clk_res->hw_drv_instances;
+		clk_desc->num_pwr_states = clk_res->num_pwr_states;
+		pr_info("%s: CRM client: hw_drv_instances = %u, num_pwr_states = %u,\n",
+			__func__, clk_desc->hw_drv_instances, clk_desc->num_pwr_states);
+
+		// Register client
+		client = test_mmrm_client_register(&desc);
+		if (client == NULL) {
+			rc = -EINVAL;
+			goto err_register;
+		}
+
+		// Set values
+		client_data = (struct mmrm_client_data){clk_res->num_hw_blocks, 0};
+		for (level = MMRM_TEST_VDD_LEVEL_TURBO; level >= 0; level--) {
+			val = clk_res->clk_rates[level];
+			// SW Client
+			client_data.drv_type = MMRM_CRM_SW_DRV;
+			rc = test_mmrm_client_set_value(client, &client_data, val);
+			if (rc != 0)
+				goto err_setval;
+
+			// All combinations of HW clients and power states
+			client_data.drv_type = MMRM_CRM_HW_DRV;
+			for (j = 0; j < clk_desc->hw_drv_instances; j++) {
+				client_data.crm_drv_idx = j;
+				for (k = 0; k < clk_desc->num_pwr_states; k++) {
+					client_data.pwr_st = k;
+					rc = test_mmrm_client_set_value(client, &client_data, val);
+					if (rc != 0)
+						goto err_setval;
+				}
+
+				// Push cached values to hardware channel and perform channel switch
+				rc = crm_write_pwr_states(crm_dev, j);
+				if (rc != 0)
+					goto err_crm_write_states;
+			}
+		}
+
+		// Get value
+		rc = test_mmrm_client_get_value(client, &res_val);
+		if (rc != 0)
+			goto err_getval;
+
+err_setval:
+err_crm_write_states:
+err_getval:
+
+		// Reset clk rates
+		client_data.drv_type = MMRM_CRM_HW_DRV;
+		for (j = 0; j < clk_desc->hw_drv_instances; j++) {
+			client_data.crm_drv_idx = j;
+			for (k = 0; k < clk_desc->num_pwr_states; k++) {
+				client_data.pwr_st = k;
+				test_mmrm_client_set_value(client, &client_data, 0);
+			}
+
+			// Push cached values to hardware channel and perform channel switch
+			crm_write_pwr_states(crm_dev, j);
+		}
+
+		// Reset clk rate
+		client_data.drv_type = MMRM_CRM_SW_DRV;
+		test_mmrm_client_set_value(client, &client_data, 0);
+
+		// Deregister client
+		rc2 = test_mmrm_client_deregister(client);
+		if (rc2 != 0)
+			goto err_deregister;
+
+err_clk:
+err_register:
+err_deregister:
+
+		if ((rc == 0) && (rc2 == 0))
+			pass_count++;
+
+		if (clk)
+			clk_put(clk);
+	}
+
+err_get_crm:
+
+	pr_info("%s: Finish individual CRM client tests (pass / total): (%d / %d)\n",
+		__func__, pass_count, crm_count);
 }
 
 #define get_csid_id(n) (37)
