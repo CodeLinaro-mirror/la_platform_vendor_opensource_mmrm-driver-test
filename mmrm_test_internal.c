@@ -375,6 +375,13 @@ err_getval:
 		client_data.drv_type = MMRM_CRM_SW_DRV;
 		test_mmrm_client_set_value(client, &client_data, 0);
 
+		// Get value - should be zero after resetting all SW/HW client rates
+		rc = test_mmrm_client_get_value(client, &res_val);
+		if (rc != 0 || res_val.cur != 0) {
+			pr_info("%s: get_value: %llu\n", __func__, res_val.cur);
+			rc = -EINVAL;
+		}
+
 		// Deregister client
 		rc2 = test_mmrm_client_deregister(client);
 		if (rc2 != 0)
