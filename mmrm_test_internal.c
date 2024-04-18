@@ -103,13 +103,13 @@ static int test_mmrm_client_set_value(
 		return -EINVAL;
 	}
 
-	pr_info("%s: cuid(%d) Setting value(%d) for mmrm client\n",
+	pr_info("%s: cuid(%d) Setting value(%lu) for mmrm client\n",
 		__func__,
 		client->client_uid,
 		val);
 	rc = mmrm_client_set_value(client, client_data, val);
 	if (rc != 0) {
-		pr_info("%s: cuid(%d) Failed to set value(%d) for mmrm client with %d\n",
+		pr_info("%s: cuid(%d) Failed to set value(%lu) for mmrm client with %d\n",
 			__func__,
 			client->client_uid,
 			val,
@@ -137,7 +137,7 @@ static int test_mmrm_client_get_value(struct mmrm_client *client, struct mmrm_cl
 			rc);
 		return rc;
 	}
-	pr_info("%s: cuid(%d) min(%d) cur(%d) max(%d)\n",
+	pr_info("%s: cuid(%d) min(%lu) cur(%lu) max(%lu)\n",
 		__func__,
 		client->client_uid,
 		val->min,
